@@ -65,18 +65,18 @@ devApps:
       createNamespace: true
 
   # ── Inline workload (rendered directly by this chart) ────────────────────
-  hello-echo:
-    inline: true
-    message: "Hello World"
-    image:
-      repository: hashicorp/http-echo
-      tag: "0.2.3"
-    servicePort: 80
-    containerPort: 5678
-    resources:
-      requests:
-        cpu: 5m
-        memory: 16Mi
-      limits:
-        cpu: 100m
-        memory: 32Mi
+  # hello-echo:
+  #   inline: true
+  #   message: "Hello World"
+  #   image:
+  #     repository: hashicorp/http-echo
+  #     tag: "0.2.3"
+  #   servicePort: 80
+  #   containerPort: 5678
+  #   resources:
+  #     requests:
+  #       cpu: 5m
+  #       memory: 16Mi
+  #     limits:
+  #       cpu: 100m
+  #       memory: 32Mi
