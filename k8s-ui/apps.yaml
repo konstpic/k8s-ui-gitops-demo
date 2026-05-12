@@ -1,27 +1,27 @@
 # k8s-ui Application catalog — read by the controller when APPS_CATALOG_* env vars
 # point at this repository and path (default path: k8s-ui/apps.yaml).
-# Every source.repoUrl must already be registered under Repositories.
+# Every spec.source.repoURL must already be registered under Repositories.
 # Rows removed from this file are NOT deleted from the DB (safety).
 #
-# This file declares only the BOOTSTRAP (parent) application.
-# All child Projects + Applications are declared as a single devApps map in
-# deploy/.helm/values.yaml. The parent renders two embedded ConfigMaps
-# (labels k8s-ui.dev/projects=embedded and k8s-ui.dev/applications=embedded)
-# which the k8s-ui controller materialises automatically on every reconcile.
-
-applications:
-  - name: gitops-demo-stack
-    project: default
-    source:
-      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
-      path: deploy/.helm
-      targetRevision: main
-    destination:
-      cluster: in-cluster
-      namespace: gitops-demo-stack
-    syncPolicy:
-      automated:
-        prune: true
-        selfHeal: true
-      createNamespace: true
-      materializeChildApps: true
+# This file declares the BOOTSTRAP (parent) application.
+# The parent chart (deploy/.helm) renders k8s-ui.io/v1alpha1 Application and
+# AppProject objects for each child in values.devApps.  The controller
+# materialises them automatically on every reconcile — no flag needed.
+apiVersion: k8s-ui.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-demo-stack
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/konstpic/k8s-ui-gitops-demo.git
+    path: deploy/.helm
+    targetRevision: main
+  destination:
+    name: in-cluster
+    namespace: gitops-demo-stack
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    createNamespace: true

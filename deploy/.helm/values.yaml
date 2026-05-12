@@ -11,12 +11,15 @@ namespacePrefix: ""
 # ─────────────────────────────────────────────────────────────────────────────
 # devApps — single map. Each key is the canonical app id.
 #
-# Each entry produces a synchronised triple in k8s-ui:
-#   1. AppProject (same name as the app) with per-app policy
-#   2. Application (same name) bound to that project
-#   3. ServiceAccount (same name) in the destination namespace
+# Each Git-sourced entry produces:
+#   1. k8s-ui.io/v1alpha1 AppProject (same name as the app)
+#   2. k8s-ui.io/v1alpha1 Application (same name) bound to that project
+#   3. Namespace + ServiceAccount in the destination namespace (workloads.yaml)
 #
-# Required when the entry IS an Application (Git-sourced):
+# The controller materialises the AppProject and Application rows automatically
+# on every reconcile (app-of-apps pattern — no flag needed).
+#
+# Required when the entry IS a Git-sourced Application:
 #   source.repoUrl
 #   source.path             (default ".")
 #   source.targetRevision   (default "HEAD")
@@ -26,12 +29,9 @@ namespacePrefix: ""
 # Inline workloads:
 #   set inline: true and provide image / message / containerPort fields.
 #   These render a Namespace + Deployment + Service in this chart directly.
+#   Inline entries do NOT produce AppProject or Application child objects.
 #
 # Optional per-entry overrides:
-#   project.sourceRepos              extra allowed repos (defaults to source.repoUrl)
-#   project.clusterResourceWhitelist defaults to Namespace + RBAC + PV
-#   project.namespaceResourceBlacklist
-#   project.clusterWide:  true → adds {*,*} to destinations and resources
 #   syncPolicy:           same shape as k8s-ui /api/v1/applications body
 #   ignoreDifferences:    list of {group,kind,name?,namespace?,jsonPointers[]}
 # ─────────────────────────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ devApps:
       namespace: gitops-demo
     syncPolicy:
       automated:
-        prune: false
+        prune: false  
         selfHeal: false
       createNamespace: true
 
@@ -65,18 +65,18 @@ devApps:
       createNamespace: true
 
   # ── Inline workload (rendered directly by this chart) ────────────────────
-  # hello-echo:
-  #   inline: true
-  #   message: "Hello World"
-  #   image:
-  #     repository: hashicorp/http-echo
-  #     tag: "0.2.3"
-  #   servicePort: 80
-  #   containerPort: 5678
-  #   resources:
-  #     requests:
-  #       cpu: 5m
-  #       memory: 16Mi
-  #     limits:
-  #       cpu: 100m
-  #       memory: 32Mi
+  hello-echo:
+    inline: true
+    message: "Hello World"
+    image:
+      repository: hashicorp/http-echo
+      tag: "0.2.3"
+    servicePort: 80
+    containerPort: 5678
+    resources:
+      requests:
+        cpu: 5m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 32Mi
