@@ -47,8 +47,8 @@ devApps:
       namespace: gitops-demo
     syncPolicy:
       automated:
-        prune: true
-        selfHeal: true
+        prune: false
+        selfHeal: false
       createNamespace: true
 
   hello-world:
@@ -60,8 +60,8 @@ devApps:
       namespace: hello-world
     syncPolicy:
       automated:
-        prune: true
-        selfHeal: true
+        prune: false
+        selfHeal: false
       createNamespace: true
 
   # ── Inline workload (rendered directly by this chart) ────────────────────
