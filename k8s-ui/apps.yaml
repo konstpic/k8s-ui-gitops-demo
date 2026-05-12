@@ -1,0 +1,35 @@
+# k8s-ui Application catalog — read by the controller when APPS_CATALOG_* env vars
+# point at this repository and path (default path: k8s-ui/apps.yaml).
+# Every source.repoUrl must already be registered under Repositories.
+# Rows removed from this file are NOT deleted from the DB (safety).
+
+applications:
+  - name: gitops-demo-web
+    project: default
+    source:
+      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
+      path: kubernetes
+      targetRevision: main
+    destination:
+      cluster: in-cluster
+      namespace: gitops-demo
+
+  - name: gitops-demo-hello-world
+    project: default
+    source:
+      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
+      path: samples/hello-world
+      targetRevision: main
+    destination:
+      cluster: in-cluster
+      namespace: hello-world
+
+  - name: gitops-demo-devapps
+    project: default
+    source:
+      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
+      path: deploy/.helm
+      targetRevision: main
+    destination:
+      cluster: in-cluster
+      namespace: gitops-demo-stack

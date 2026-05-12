@@ -1,25 +1,41 @@
 # gitops-demo — sample manifests for k8s-ui
 
-Public demo GitOps repo: Deployment, Service, Ingress, ConfigMap, Secret, ServiceAccount, Role, RoleBinding, PodDisruptionBudget.
+Public demo GitOps repo: Deployment, Service, Ingress, ConfigMap, Secret, ServiceAccount, Role, RoleBinding, PodDisruptionBudget, plus an **Application catalog** file for k8s-ui.
 
-## Use in k8s-ui
+## Application catalog (`k8s-ui/apps.yaml`)
 
-Register this repository, then create **Applications** (each sync runs `git clone` + render + apply):
+k8s-ui can **materialize Applications from Git**: the controller periodically reads a YAML file with an `applications:` list (same fields as the API: `name`, `project`, `source.repoUrl`, `source.path`, `source.targetRevision`, optional `source.helmValues`, `destination.cluster`, `destination.namespace`, optional `syncPolicy.automated`).
 
-| Path | Renderer | Destination namespace (typical) |
-|------|-----------|-----------------------------------|
-| `kubernetes` | Plain YAML (recursive `.yaml`) | `gitops-demo` (namespaces are set in the files) |
-| `samples/hello-world` | Helm (`helm template`) | e.g. `hello-world` (chart leaves namespace empty; k8s-ui fills from Application destination) |
-| `deploy/.helm` | Helm — **devApps** chart (see below) | Any; chart sets explicit `metadata.namespace` per entry (default = map key, e.g. `hello-world`) |
+1. Register **Repositories** for every `source.repoUrl` in the file (this demo uses one URL three times).
+2. Commit **`k8s-ui/apps.yaml`** in this repo (default path when `APPS_CATALOG_PATH` is unset).
+3. On the **controller** process, set for example:
 
-**Revision:** your branch or tag (e.g. `main`).
+| Variable | Example |
+|----------|---------|
+| `APPS_CATALOG_REPO_URL` | `https://github.com/konstpic/k8s-ui-gitops-demo.git` |
+| `APPS_CATALOG_PATH` | `k8s-ui/apps.yaml` (default) |
+| `APPS_CATALOG_REVISION` | `main` or `HEAD` (default) |
+| `APPS_CATALOG_INTERVAL` | `5m` (default; minimum `10s` when catalog is enabled) |
 
-**k8s-ui sync ordering:** the control plane applies `Namespace` (and other
-RBAC-ish kinds) before `Deployment` even when plain YAML files are listed
-alphabetically (`deployment.yaml` before `namespace.yaml`). The umbrella chart
-creates a `Namespace` for each `httpEcho` target namespace; the
-`samples/hello-world` chart optionally renders its destination namespace
-(`createNamespace`, default `true`).
+On each tick the controller **creates** missing rows and **updates** changed fields. Applications **removed** from the YAML are **not** deleted from the database (avoids wiping everything on a bad commit).
+
+See also the k8s-ui project README section **Application catalog (Git-driven app list)**.
+
+## `POST /api/v1/application-batches`
+
+The JSON `template` is merged into each `items[]` row; each item may override **`repoUrl`**, **`path`**, **`targetRevision`**, **`cluster`**, **`destNamespace`**, **`project`**, and **`helmValues`** — useful for CI without relying on the catalog env vars.
+
+## Use in k8s-ui (single Application per path)
+
+| Path | Renderer | Typical destination namespace |
+|------|-----------|----------------------------------|
+| `kubernetes` | Plain YAML | `gitops-demo` (set in manifests) |
+| `samples/hello-world` | Helm | e.g. `hello-world` |
+| `deploy/.helm` | Helm (`devApps`, mostly `httpEcho`) | e.g. `gitops-demo-stack` (chart sets per-resource namespaces) |
+
+**Revision:** branch or tag (e.g. `main`).
+
+**Apply order:** k8s-ui sorts resources before apply (`Namespace` before `Deployment`, etc.); charts here also emit `Namespace` where useful.
 
 ## Ingress (optional)
 
@@ -33,32 +49,12 @@ Install an ingress controller (e.g. ingress-nginx) or delete `ingress.yaml` if y
 
 ## Images
 
-Uses `nginxinc/nginx-unprivileged:1.27-alpine` (non-root) in `kubernetes/`. The devApps chart and `samples/hello-world` use `hashicorp/http-echo` for a minimal HTTP response.
+`kubernetes/` uses `nginxinc/nginx-unprivileged:1.27-alpine` (non-root). Sample Helm charts use `hashicorp/http-echo`.
 
 ## Chart `deploy/.helm` (devApps)
 
-One k8s-ui **Application** points at path **`deploy/.helm`** (Helm). Values key **`devApps`** lists logical components. Supported **`type`** values:
-
-| `type` | What gets rendered into the cluster |
-|--------|-------------------------------------|
-| **`httpEcho`** | `Deployment` + `Service` (synthetic echo pod). Namespace defaults to the map key unless you set **`namespace`**. |
-| **`gitHelmSource`** | No Pod from this chart alone. Emits a **ConfigMap** (`…-desired-applications`) whose `data` entries are small YAML documents shaped like **`POST /api/v1/applications`** bodies: `name`, `project`, `source.repoUrl`, `source.path`, `source.targetRevision`, `destination.cluster`, `destination.namespace`, `syncPolicy`. One Git repo + one chart path per entry — exactly one k8s-ui Application per child. |
-
-**Git + Helm for children:** register each **`repository`** URL under **Repositories** in the UI (or API), then create one Application per `gitHelmSource` row (same fields as in the ConfigMap). The ConfigMap is the **declarative list** you can drive from CI (read keys `desired-*.application.yaml`, `POST` each payload) until the product grows a built-in importer or reconciler for that object.
-
-**`POST /api/v1/application-batches`** today uses one shared **template** (single `repoUrl` / `path` / `revision`) for all batch rows, so it does **not** replace per-repo batching; use one `POST /applications` per distinct source, or a small script over the ConfigMap.
-
-**Parent sync** applies the ConfigMap plus any **`httpEcho`** workloads in one revision; child charts are still rendered by **their own** Application when you add them in the control plane.
-
-Other details:
-
-- **Object names** for `httpEcho` use the Helm release name (k8s-ui Application name), e.g. `my-release-hello-echo`.
-- Optional **`helmValues`** on the parent Application is merged into `helm template` as an extra values file.
-
-Render locally:
+Helm values key **`devApps`** defines **`httpEcho`** components (Deployment + Service + Namespace per entry). Declarative **multi-repo** applications belong in **`k8s-ui/apps.yaml`** for the catalog, not in this chart.
 
 ```bash
-helm template my-release ./deploy/.helm --namespace gitops-system
+helm template my-release ./deploy/.helm --namespace gitops-demo-stack
 ```
-
-The **`kubernetes/`** nginx demo remains a good **separate** Application (plain YAML). You can also point a standalone Application at **`samples/hello-world`** without listing it under `gitHelmSource`, if you prefer not to duplicate that chart in GitOps metadata.

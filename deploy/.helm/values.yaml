@@ -3,33 +3,12 @@ partOf: gitops-demo
 
 env: dev
 
-# Default Git ref for gitHelmSource entries that omit `ref`.
-defaultRef: main
-
 # Optional prefix for httpEcho namespace: "<namespacePrefix><appKey>".
 namespacePrefix: ""
 
-# ConfigMap name for desired child Application specs (gitHelmSource only).
-desiredApplicationsConfigMapName: ""
-
-# devApps — map key = stable id.
-#
-# type: httpEcho — Deployment + Service in-cluster (synthetic demo).
-#
-# type: gitHelmSource — does not render Pods here; adds a snippet under the ConfigMap
-#   so one GitOps sync ships the *declaration* of child apps (repo URL + Helm chart path + revision + namespace).
-#   Each child still maps to one k8s-ui Application row (one repo + one path); register the repo in the UI, then
-#   create Applications from the rendered files (CI script, importer, or manual).
-#
+# devApps — map key = stable id. Only type httpEcho is supported here.
+# Declarative multi-repo apps live in k8s-ui/apps.yaml (Application catalog).
 devApps:
-  hello-world-chart:
-    type: gitHelmSource
-    applicationName: gitops-demo-hello-world
-    repository: https://github.com/konstpic/k8s-ui-gitops-demo.git
-    path: samples/hello-world
-    ref: main
-    namespace: hello-world
-
   hello-echo:
     type: httpEcho
     message: "Hello World"
