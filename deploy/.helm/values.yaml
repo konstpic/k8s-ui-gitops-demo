@@ -7,7 +7,7 @@ env: dev
 namespacePrefix: ""
 
 # devApps — map key = stable id. Only type httpEcho is supported here.
-# Declarative multi-repo apps live in k8s-ui/apps.yaml (Application catalog).
+# Declarative multi-repo apps live in childApplications below.
 devApps:
   hello-echo:
     type: httpEcho
@@ -24,3 +24,47 @@ devApps:
       limits:
         cpu: 100m
         memory: 32Mi
+
+# childApplications is read by k8s-ui when the parent Application has
+# syncPolicy.materializeChildApps: true. On every reconcile k8s-ui upserts
+# these rows into its database — the parent chart is the single source of
+# truth for what child Applications exist.
+#
+# Prerequisites:
+#   - Every source.repoUrl must be registered under Repositories in k8s-ui.
+#   - destination.cluster must match a registered cluster name.
+#
+# The parent Application itself (gitops-demo-stack) is created once — either
+# manually or via the Apps Catalog — and then self-manages from that point on.
+childApplications:
+  # Plain-YAML workloads: nginx demo app
+  - name: gitops-demo-web
+    project: default
+    source:
+      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
+      path: kubernetes
+      targetRevision: main
+    destination:
+      cluster: in-cluster
+      namespace: gitops-demo
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      createNamespace: true
+
+  # Helm chart: hello-world sample
+  - name: gitops-demo-hello-world
+    project: default
+    source:
+      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
+      path: samples/hello-world
+      targetRevision: main
+    destination:
+      cluster: in-cluster
+      namespace: hello-world
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      createNamespace: true

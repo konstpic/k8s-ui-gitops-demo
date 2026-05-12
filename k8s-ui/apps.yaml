@@ -2,29 +2,14 @@
 # point at this repository and path (default path: k8s-ui/apps.yaml).
 # Every source.repoUrl must already be registered under Repositories.
 # Rows removed from this file are NOT deleted from the DB (safety).
+#
+# This file declares only the BOOTSTRAP (parent) application.
+# All child applications (gitops-demo-web, gitops-demo-hello-world, …) are
+# declared in deploy/.helm/values.yaml (childApplications) and materialized
+# automatically by k8s-ui on every reconcile of the parent app.
 
 applications:
-  - name: gitops-demo-web
-    project: default
-    source:
-      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
-      path: kubernetes
-      targetRevision: main
-    destination:
-      cluster: in-cluster
-      namespace: gitops-demo
-
-  - name: gitops-demo-hello-world
-    project: default
-    source:
-      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
-      path: samples/hello-world
-      targetRevision: main
-    destination:
-      cluster: in-cluster
-      namespace: hello-world
-
-  - name: gitops-demo-devapps
+  - name: gitops-demo-stack
     project: default
     source:
       repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
@@ -33,3 +18,9 @@ applications:
     destination:
       cluster: in-cluster
       namespace: gitops-demo-stack
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      createNamespace: true
+      materializeChildApps: true

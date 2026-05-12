@@ -1,0 +1,15 @@
+{{- if .Values.childApplications }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-k8s-ui-child-apps" .Release.Name | trunc 63 | trimSuffix "-" }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: {{ .Values.partOf | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    k8s-ui.dev/applications: embedded
+data:
+  applications.yaml: |
+{{ dict "applications" .Values.childApplications | toYaml | nindent 4 }}
+{{- end }}
