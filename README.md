@@ -14,6 +14,13 @@ Register this repository, then create **Applications** (each sync runs `git clon
 
 **Revision:** your branch or tag (e.g. `main`).
 
+**k8s-ui sync ordering:** the control plane applies `Namespace` (and other
+RBAC-ish kinds) before `Deployment` even when plain YAML files are listed
+alphabetically (`deployment.yaml` before `namespace.yaml`). The umbrella chart
+creates a `Namespace` for each `httpEcho` target namespace; the
+`samples/hello-world` chart optionally renders its destination namespace
+(`createNamespace`, default `true`).
+
 ## Ingress (optional)
 
 `Ingress` uses host **`gitops-demo.local`**. Add to `/etc/hosts`:

@@ -14,6 +14,15 @@
 {{- $req := $res.requests | default dict }}
 {{- $lim := $res.limits | default dict }}
 {{- $comp := include "gitops-dev-apps.componentName" (dict "root" $ "app" $app) }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "gitops-dev-apps.labels" (dict "root" $ "app" $app "partOf" $.Values.partOf "env" $.Values.env) | nindent 4 }}
+    app.kubernetes.io/name: {{ $comp | quote }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
