@@ -22,3 +22,20 @@ Install an ingress controller (e.g. ingress-nginx) or delete `ingress.yaml` if y
 ## Images
 
 Uses `nginxinc/nginx-unprivileged:1.27-alpine` (non-root).
+
+## Deploy umbrella (Argo CD)
+
+The `deploy/.helm` chart renders one **AppProject** + **Application** per entry in `devApps` (same idea as `argo-deploy2` / `020-devApps.yaml`, without Werf/Vault plugin env).
+
+- **Argo app name:** `{umbrellaRelease}-{devAppKey}` (see `umbrellaRelease` in `deploy/.helm/values.yaml`).
+- **Namespace:** defaults to the **devApp map key** (e.g. `demo-web` → namespace `demo-web`). Optional `namespacePrefix`, or set `namespace` on a single app.
+- **Per app:** `repository`, `path`, `ref`, optional `enabled`, `syncPolicy`, `cluster`.
+- **Test Helm app:** `samples/hello-world` — small chart (`hashicorp/http-echo`) that responds with **Hello World** on Service port 80; included in `devApps` as `hello-world` (namespace `hello-world`).
+
+Render manifests:
+
+```bash
+helm template gitops-umbrella ./deploy/.helm
+```
+
+Point a parent Argo CD Application at this repo with path `deploy/.helm` and the same values (or layer env-specific values files).
