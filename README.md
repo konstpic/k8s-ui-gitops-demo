@@ -39,3 +39,14 @@ helm template gitops-umbrella ./deploy/.helm
 ```
 
 Point a parent Argo CD Application at this repo with path `deploy/.helm` and the same values (or layer env-specific values files).
+
+### k8s-ui (самописный GitOps, не Argo CD)
+
+В k8s-ui одна **Application** = один checkout **path** в репо: если в каталоге есть `Chart.yaml`, вызывается **`helm template`** с `--namespace` из destination и опциональным `helmValues` (JSON как дополнительный `-f`).
+
+- **`deploy/.helm` не используйте как единственный app** — chart рендерит CRD `Application` / `AppProject` (`argoproj.io`), это для Argo CD; в k8s-ui они либо не применятся без установленных CRD, либо не создадут нужные Deployment/Service.
+- Заведите **отдельные приложения** на те же ревизии репозитория, например:
+  - path **`kubernetes`**, namespace **`gitops-demo`** (в манифестах зашит этот namespace);
+  - path **`samples/hello-world`**, namespace **`hello-world`** (у объектов chart без namespace в metadata подставится destination из UI).
+
+Сначала зарегистрируйте **Repository** с URL этого репо, затем создайте Applications с нужными `path` / `destination.namespace` / `targetRevision`.
