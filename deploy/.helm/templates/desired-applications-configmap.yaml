@@ -1,26 +1,28 @@
 {{- /*
-Build a list of Application entries from devApps entries that have a "source"
-block (i.e. Git-sourced Applications). Entries without a source are rendered
-as inline workloads by workloads.yaml.
+Embedded Applications. Each Git-sourced devApps entry produces one Application
+row, bound to a project of the same name (created by
+desired-projects-configmap.yaml).
 */}}
 {{- $apps := list }}
 {{- range $key, $cfg := .Values.devApps }}
-{{- if and (or (not (hasKey $cfg "enabled")) (eq $cfg.enabled true)) (hasKey $cfg "source") }}
-{{- $appName := $cfg.name | default $key }}
-{{- $destNS   := $cfg.destination | default dict }}
-{{- $ns       := $cfg.namespace | default (printf "%s%s" ($.Values.namespacePrefix | default "") $key) }}
-{{- $destNSVal := (get ($cfg.destination | default dict) "namespace") | default $ns }}
+{{- $enabled := or (not (hasKey $cfg "enabled")) (eq $cfg.enabled true) }}
+{{- $isInline := eq ($cfg.inline | default false) true }}
+{{- if and $enabled (not $isInline) (hasKey $cfg "source") }}
+{{- $name := $cfg.name | default $key }}
+{{- $dest := $cfg.destination | default dict }}
+{{- $destNS := $dest.namespace | default $name }}
+{{- $destCluster := $dest.cluster | default ($.Values.cluster | default "in-cluster") }}
 {{- $entry := dict
-    "name"        $appName
-    "project"     ($cfg.project | default "default")
+    "name"        $name
+    "project"     $name
     "source"      $cfg.source
-    "destination" (dict
-        "cluster"   ((get ($cfg.destination | default dict) "cluster") | default "in-cluster")
-        "namespace" $destNSVal
-    )
+    "destination" (dict "cluster" $destCluster "namespace" $destNS)
 }}
-{{- if hasKey $cfg "syncPolicy" }}
-{{- $entry = merge $entry (dict "syncPolicy" $cfg.syncPolicy) }}
+{{- if hasKey $cfg "syncPolicy" }}{{- $_ := set $entry "syncPolicy" $cfg.syncPolicy }}{{- end }}
+{{- if hasKey $cfg "ignoreDifferences" }}
+{{- $sp := index $entry "syncPolicy" | default dict }}
+{{- $_ := set $sp "ignoreDifferences" $cfg.ignoreDifferences }}
+{{- $_ := set $entry "syncPolicy" $sp }}
 {{- end }}
 {{- $apps = append $apps $entry }}
 {{- end }}

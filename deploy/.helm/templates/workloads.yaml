@@ -1,10 +1,17 @@
 {{- /*
-Render inline workloads for devApps entries that do NOT have a "source" block.
-Entries with a "source" are Git-sourced Applications and are emitted as a
-ConfigMap by desired-applications-configmap.yaml instead.
+Two rendering paths for devApps:
+  - inline: true                    → Namespace + Deployment + Service (httpEcho)
+  - has source / inline: false      → Namespace + ServiceAccount only
+                                       (the actual workload comes from the child
+                                        Application's own source)
 */}}
 {{- range $app, $cfg := .Values.devApps }}
-{{- if and (or (not (hasKey $cfg "enabled")) (eq $cfg.enabled true)) (not (hasKey $cfg "source")) }}
+{{- if or (not (hasKey $cfg "enabled")) (eq $cfg.enabled true) }}
+{{- $name := $cfg.name | default $app }}
+{{- $isInline := eq ($cfg.inline | default false) true }}
+
+{{- if $isInline }}
+{{- /* ───────── inline httpEcho workload ───────── */}}
 {{- $ns   := $cfg.namespace | default (printf "%s%s" ($.Values.namespacePrefix | default "") $app) }}
 {{- $msg  := $cfg.message | default "Hello World" }}
 {{- $sport := $cfg.servicePort | default 80 }}
@@ -95,5 +102,30 @@ spec:
     - name: http
       port: {{ $sport }}
       targetPort: http
+
+{{- else if hasKey $cfg "source" }}
+{{- /* ───────── Git-sourced Application: namespace + per-app ServiceAccount ───────── */}}
+{{- $dest := $cfg.destination | default dict }}
+{{- $destNS := $dest.namespace | default $name }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $destNS }}
+  labels:
+    {{- include "gitops-dev-apps.labels" (dict "root" $ "app" $app "partOf" $.Values.partOf "env" $.Values.env) | nindent 4 }}
+    app.kubernetes.io/name: {{ $name | quote }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ $destNS }}
+  labels:
+    {{- include "gitops-dev-apps.labels" (dict "root" $ "app" $app "partOf" $.Values.partOf "env" $.Values.env) | nindent 4 }}
+    app.kubernetes.io/name: {{ $name | quote }}
+automountServiceAccountToken: false
+{{- end }}
+
 {{- end }}
 {{- end }}

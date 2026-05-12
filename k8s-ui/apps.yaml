@@ -4,9 +4,10 @@
 # Rows removed from this file are NOT deleted from the DB (safety).
 #
 # This file declares only the BOOTSTRAP (parent) application.
-# All child applications (gitops-demo-web, gitops-demo-hello-world, …) are
-# declared in deploy/.helm/values.yaml (childApplications) and materialized
-# automatically by k8s-ui on every reconcile of the parent app.
+# All child Projects + Applications are declared as a single devApps map in
+# deploy/.helm/values.yaml. The parent renders two embedded ConfigMaps
+# (labels k8s-ui.dev/projects=embedded and k8s-ui.dev/applications=embedded)
+# which the k8s-ui controller materialises automatically on every reconcile.
 
 applications:
   - name: gitops-demo-stack

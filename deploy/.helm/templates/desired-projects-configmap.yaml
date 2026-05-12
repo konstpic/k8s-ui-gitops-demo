@@ -1,0 +1,62 @@
+{{- /*
+Embedded Projects: k8s-ui reads this ConfigMap when the parent Application has
+syncPolicy.materializeChildApps=true. The same name as the Application is used
+for the AppProject (Argo-style "one project per app" model).
+*/}}
+{{- $projects := list }}
+{{- range $key, $cfg := .Values.devApps }}
+{{- $enabled := or (not (hasKey $cfg "enabled")) (eq $cfg.enabled true) }}
+{{- $isInline := eq ($cfg.inline | default false) true }}
+{{- if and $enabled (not $isInline) (hasKey $cfg "source") }}
+{{- $name := $cfg.name | default $key }}
+{{- $dest := $cfg.destination | default dict }}
+{{- $destNS := $dest.namespace | default $name }}
+{{- $destCluster := $dest.cluster | default ($.Values.cluster | default "in-cluster") }}
+{{- $projCfg := $cfg.project | default dict }}
+{{- $repos := list }}
+{{- if $projCfg.sourceRepos }}{{- $repos = $projCfg.sourceRepos }}{{- else }}{{- $repos = list $cfg.source.repoUrl }}{{- end }}
+{{- $destinations := list (dict "name" $destCluster "namespace" $destNS) }}
+{{- if eq ($projCfg.clusterWide | default false) true }}
+{{- $destinations = append $destinations (dict "name" "*" "namespace" "*") }}
+{{- end }}
+{{- $clusterWL := $projCfg.clusterResourceWhitelist }}
+{{- if not $clusterWL }}
+{{- $clusterWL = list
+    (dict "group" "" "kind" "Namespace")
+    (dict "group" "rbac.authorization.k8s.io" "kind" "ClusterRoleBinding")
+    (dict "group" "" "kind" "PersistentVolume")
+}}
+{{- if eq ($projCfg.clusterWide | default false) true }}
+{{- $clusterWL = append $clusterWL (dict "group" "*" "kind" "*") }}
+{{- end }}
+{{- end }}
+{{- $entry := dict
+    "name"        $name
+    "description" (printf "auto-generated project for application %s" $name)
+    "policies"    (dict
+        "sourceRepos"              $repos
+        "destinations"             $destinations
+        "clusterResourceWhitelist" $clusterWL
+    )
+}}
+{{- if $projCfg.namespaceResourceBlacklist }}
+{{- $_ := set $entry.policies "namespaceResourceBlacklist" $projCfg.namespaceResourceBlacklist }}
+{{- end }}
+{{- $projects = append $projects $entry }}
+{{- end }}
+{{- end }}
+{{- if $projects }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-k8s-ui-child-projects" .Release.Name | trunc 63 | trimSuffix "-" }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: {{ .Values.partOf | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    k8s-ui.dev/projects: embedded
+data:
+  projects.yaml: |
+{{ dict "projects" $projects | toYaml | nindent 4 }}
+{{- end }}
