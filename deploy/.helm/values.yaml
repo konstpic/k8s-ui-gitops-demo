@@ -1,47 +1,35 @@
-# Umbrella release id — prefix for Argo CD Application / AppProject names (must be unique in cluster).
-umbrellaRelease: gitops-demo
+# Label app.kubernetes.io/part-of for all generated objects.
+partOf: gitops-demo
 
 env: dev
 
-# Optional prefix for generated namespace: "<namespacePrefix><appKey>". Empty = namespace equals app key only.
+# Optional prefix for namespace: "<namespacePrefix><appKey>". Empty = namespace is the app key only.
 namespacePrefix: ""
 
-# Default Git revision if a devApp omits `ref`.
-ref: main
-
-# Default repo if a devApp omits `repository` (override per app).
-repository: ""
-
-syncPolicy: manual
-
-# Argo CD destination cluster name (as registered in Argo CD).
-cluster: in-cluster
-
-# --- Example devApps: replace repo URLs with yours (product / service / this repo).
-# Namespace defaults to the map key (app name), e.g. key `demo-web` -> namespace `demo-web`.
-# Override any app with `namespace: custom-ns`.
+# devApps: map key = stable id (used as default namespace and in resource names).
+# type: httpEcho — Deployment + Service (hashicorp/http-echo by default).
+# For plain YAML or a standalone Helm chart in this repo, create a separate k8s-ui Application
+# (e.g. path "kubernetes" or "samples/hello-world") instead of listing it here.
 devApps:
-  demo-web:
-    repository: https://github.com/example/k8s-ui-gitops-demo.git
-    path: kubernetes
-    ref: main
-    syncPolicy: auto
-
-  # Helm chart under samples/ — Argo CD detects Chart.yaml and deploys as Helm.
   hello-world:
-    repository: https://github.com/example/k8s-ui-gitops-demo.git
-    path: samples/hello-world
-    ref: main
-    syncPolicy: auto
+    type: httpEcho
+    message: "Hello World"
+    image:
+      repository: hashicorp/http-echo
+      tag: "0.2.3"
+    servicePort: 80
+    containerPort: 5678
+    resources:
+      requests:
+        cpu: 5m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 32Mi
 
-  # product (paths like stable/... in deploy/product monorepo):
-  # product-db:
-  #   repository: https://git.example.com/deploy/product.git
-  #   path: stable/base/postgres-gateway
-  #   ref: master
-  #
-  # service (separate repo with per-product dirs — point path at the chart/manifests root):
-  # mrkt-api:
-  #   repository: https://git.example.com/deploy/service.git
-  #   path: mrkt/api
-  #   ref: master
+  # Example second service (enable when needed):
+  # echo-canary:
+  #   type: httpEcho
+  #   enabled: true
+  #   message: "Canary"
+  #   namespace: echo-canary

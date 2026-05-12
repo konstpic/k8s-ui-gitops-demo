@@ -1,5 +1,5 @@
 apiVersion: v2
-name: gitops-deploy-umbrella
-description: Argo CD umbrella — one release expands devApps into Applications + AppProjects
+name: gitops-dev-apps
+description: Helm chart for k8s-ui — expands devApps into Kubernetes workloads
 type: application
-version: 0.1.0
+version: 0.2.0

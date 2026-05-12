@@ -1,0 +1,91 @@
+{{- range $app, $cfg := .Values.devApps }}
+{{- if or (not (hasKey $cfg "enabled")) (eq $cfg.enabled true) }}
+{{- $type := $cfg.type | default "httpEcho" }}
+{{- $ns := $cfg.namespace | default (printf "%s%s" ($.Values.namespacePrefix | default "") $app) }}
+{{- if eq $type "httpEcho" }}
+{{- $msg := $cfg.message | default "Hello World" }}
+{{- $sport := $cfg.servicePort | default 80 }}
+{{- $cport := $cfg.containerPort | default 5678 }}
+{{- $imgCfg := $cfg.image | default dict }}
+{{- $img := $imgCfg.repository | default "hashicorp/http-echo" }}
+{{- $tag := $imgCfg.tag | default "0.2.3" }}
+{{- $pull := $imgCfg.pullPolicy | default "IfNotPresent" }}
+{{- $res := $cfg.resources | default dict }}
+{{- $req := $res.requests | default dict }}
+{{- $lim := $res.limits | default dict }}
+{{- $comp := include "gitops-dev-apps.componentName" (dict "root" $ "app" $app) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $comp }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "gitops-dev-apps.labels" (dict "root" $ "app" $app "partOf" $.Values.partOf "env" $.Values.env) | nindent 4 }}
+    app.kubernetes.io/name: {{ $comp | quote }}
+spec:
+  replicas: {{ $cfg.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $comp | quote }}
+  template:
+    metadata:
+      labels:
+        {{- include "gitops-dev-apps.labels" (dict "root" $ "app" $app "partOf" $.Values.partOf "env" $.Values.env) | nindent 8 }}
+        app.kubernetes.io/name: {{ $comp | quote }}
+    spec:
+      containers:
+        - name: echo
+          image: "{{ $img }}:{{ $tag }}"
+          imagePullPolicy: {{ $pull }}
+          args:
+            - "-listen=:{{ $cport }}"
+            - "-text={{ $msg }}"
+          ports:
+            - name: http
+              containerPort: {{ $cport }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 1
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          {{- if or (not (empty $req)) (not (empty $lim)) }}
+          resources:
+            {{- if not (empty $req) }}
+            requests:
+              {{- toYaml $req | nindent 14 }}
+            {{- end }}
+            {{- if not (empty $lim) }}
+            limits:
+              {{- toYaml $lim | nindent 14 }}
+            {{- end }}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $comp }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "gitops-dev-apps.labels" (dict "root" $ "app" $app "partOf" $.Values.partOf "env" $.Values.env) | nindent 4 }}
+    app.kubernetes.io/name: {{ $comp | quote }}
+spec:
+  type: {{ $cfg.serviceType | default "ClusterIP" }}
+  selector:
+    app.kubernetes.io/name: {{ $comp | quote }}
+  ports:
+    - name: http
+      port: {{ $sport }}
+      targetPort: http
+---
+{{- else }}
+{{- fail (printf "devApps.%s: unsupported type %q (supported: httpEcho)" $app $type) }}
+{{- end }}
+{{- end }}
+{{- end }}
