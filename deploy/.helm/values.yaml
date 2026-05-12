@@ -6,11 +6,77 @@ env: dev
 # Optional prefix for httpEcho namespace: "<namespacePrefix><appKey>".
 namespacePrefix: ""
 
-# devApps — map key = stable id. Only type httpEcho is supported here.
-# Declarative multi-repo apps live in childApplications below.
+# devApps — map key = stable id used as the Application name (or workload name).
+#
+# Two kinds of entries:
+#
+#  1. Git-sourced Application (has a "source" block):
+#       k8s-ui materialises a child Application row for every entry that has
+#       source.repoUrl set. The parent Application must have
+#       syncPolicy.materializeChildApps=true.
+#
+#  2. Inline workload (no "source", or type: httpEcho explicitly):
+#       The chart renders a Namespace + Deployment + Service directly.
+#       Useful for lightweight echo/stub pods that live inside this chart.
+#
+# Common fields (both kinds):
+#   enabled:      bool, default true — set false to skip without deleting the key
+#   namespace:    destination namespace (default: <namespacePrefix><key>)
+#
+# Git-sourced Application fields (required when source is present):
+#   source.repoUrl
+#   source.path
+#   source.targetRevision  (default: HEAD)
+#   source.helmValues:     optional Helm values override (YAML/JSON object)
+#   source.helmValueFiles: optional list of value file paths relative to chart dir
+#   destination.cluster:   registered k8s-ui cluster name (default: in-cluster)
+#   destination.namespace: where to deploy (default: namespace field above)
+#   project:               k8s-ui project name (default: default)
+#   syncPolicy:            automated, prune, selfHeal, createNamespace, etc.
+#
+# Inline httpEcho workload fields (used when no source):
+#   message:        echo response text
+#   image.repository / image.tag / image.pullPolicy
+#   servicePort / containerPort
+#   replicas / resources / serviceType
 devApps:
+  # --- Git-sourced Applications (materialized as child Application rows) ---
+
+  web:
+    name: gitops-demo-web         # explicit Application name (optional, default: key)
+    source:
+      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
+      path: kubernetes
+      targetRevision: main
+    destination:
+      cluster: in-cluster
+      namespace: gitops-demo
+    project: default
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      createNamespace: true
+
+  hello-world:
+    name: gitops-demo-hello-world
+    source:
+      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
+      path: samples/hello-world
+      targetRevision: main
+    destination:
+      cluster: in-cluster
+      namespace: hello-world
+    project: default
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      createNamespace: true
+
+  # --- Inline workloads (rendered directly by this chart) ---
+
   hello-echo:
-    type: httpEcho
     message: "Hello World"
     image:
       repository: hashicorp/http-echo
@@ -24,47 +90,3 @@ devApps:
       limits:
         cpu: 100m
         memory: 32Mi
-
-# childApplications is read by k8s-ui when the parent Application has
-# syncPolicy.materializeChildApps: true. On every reconcile k8s-ui upserts
-# these rows into its database — the parent chart is the single source of
-# truth for what child Applications exist.
-#
-# Prerequisites:
-#   - Every source.repoUrl must be registered under Repositories in k8s-ui.
-#   - destination.cluster must match a registered cluster name.
-#
-# The parent Application itself (gitops-demo-stack) is created once — either
-# manually or via the Apps Catalog — and then self-manages from that point on.
-childApplications:
-  # Plain-YAML workloads: nginx demo app
-  - name: gitops-demo-web
-    project: default
-    source:
-      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
-      path: kubernetes
-      targetRevision: main
-    destination:
-      cluster: in-cluster
-      namespace: gitops-demo
-    syncPolicy:
-      automated:
-        prune: true
-        selfHeal: true
-      createNamespace: true
-
-  # Helm chart: hello-world sample
-  - name: gitops-demo-hello-world
-    project: default
-    source:
-      repoUrl: https://github.com/konstpic/k8s-ui-gitops-demo.git
-      path: samples/hello-world
-      targetRevision: main
-    destination:
-      cluster: in-cluster
-      namespace: hello-world
-    syncPolicy:
-      automated:
-        prune: true
-        selfHeal: true
-      createNamespace: true

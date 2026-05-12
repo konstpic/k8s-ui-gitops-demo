@@ -1,18 +1,21 @@
+{{- /*
+Render inline workloads for devApps entries that do NOT have a "source" block.
+Entries with a "source" are Git-sourced Applications and are emitted as a
+ConfigMap by desired-applications-configmap.yaml instead.
+*/}}
 {{- range $app, $cfg := .Values.devApps }}
-{{- if or (not (hasKey $cfg "enabled")) (eq $cfg.enabled true) }}
-{{- $type := $cfg.type | default "httpEcho" }}
-{{- $ns := $cfg.namespace | default (printf "%s%s" ($.Values.namespacePrefix | default "") $app) }}
-{{- if eq $type "httpEcho" }}
-{{- $msg := $cfg.message | default "Hello World" }}
+{{- if and (or (not (hasKey $cfg "enabled")) (eq $cfg.enabled true)) (not (hasKey $cfg "source")) }}
+{{- $ns   := $cfg.namespace | default (printf "%s%s" ($.Values.namespacePrefix | default "") $app) }}
+{{- $msg  := $cfg.message | default "Hello World" }}
 {{- $sport := $cfg.servicePort | default 80 }}
 {{- $cport := $cfg.containerPort | default 5678 }}
 {{- $imgCfg := $cfg.image | default dict }}
-{{- $img := $imgCfg.repository | default "hashicorp/http-echo" }}
-{{- $tag := $imgCfg.tag | default "0.2.3" }}
+{{- $img  := $imgCfg.repository | default "hashicorp/http-echo" }}
+{{- $tag  := $imgCfg.tag | default "0.2.3" }}
 {{- $pull := $imgCfg.pullPolicy | default "IfNotPresent" }}
-{{- $res := $cfg.resources | default dict }}
-{{- $req := $res.requests | default dict }}
-{{- $lim := $res.limits | default dict }}
+{{- $res  := $cfg.resources | default dict }}
+{{- $req  := $res.requests | default dict }}
+{{- $lim  := $res.limits | default dict }}
 {{- $comp := include "gitops-dev-apps.componentName" (dict "root" $ "app" $app) }}
 ---
 apiVersion: v1
@@ -92,9 +95,5 @@ spec:
     - name: http
       port: {{ $sport }}
       targetPort: http
----
-{{- else }}
-{{- fail (printf "devApps.%s: unsupported type %q (supported: httpEcho)" $app $type) }}
-{{- end }}
 {{- end }}
 {{- end }}

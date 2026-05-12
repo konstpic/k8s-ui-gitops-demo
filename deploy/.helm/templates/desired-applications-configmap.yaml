@@ -1,4 +1,31 @@
-{{- if .Values.childApplications }}
+{{- /*
+Build a list of Application entries from devApps entries that have a "source"
+block (i.e. Git-sourced Applications). Entries without a source are rendered
+as inline workloads by workloads.yaml.
+*/}}
+{{- $apps := list }}
+{{- range $key, $cfg := .Values.devApps }}
+{{- if and (or (not (hasKey $cfg "enabled")) (eq $cfg.enabled true)) (hasKey $cfg "source") }}
+{{- $appName := $cfg.name | default $key }}
+{{- $destNS   := $cfg.destination | default dict }}
+{{- $ns       := $cfg.namespace | default (printf "%s%s" ($.Values.namespacePrefix | default "") $key) }}
+{{- $destNSVal := (get ($cfg.destination | default dict) "namespace") | default $ns }}
+{{- $entry := dict
+    "name"        $appName
+    "project"     ($cfg.project | default "default")
+    "source"      $cfg.source
+    "destination" (dict
+        "cluster"   ((get ($cfg.destination | default dict) "cluster") | default "in-cluster")
+        "namespace" $destNSVal
+    )
+}}
+{{- if hasKey $cfg "syncPolicy" }}
+{{- $entry = merge $entry (dict "syncPolicy" $cfg.syncPolicy) }}
+{{- end }}
+{{- $apps = append $apps $entry }}
+{{- end }}
+{{- end }}
+{{- if $apps }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -11,5 +38,5 @@ metadata:
     k8s-ui.dev/applications: embedded
 data:
   applications.yaml: |
-{{ dict "applications" .Values.childApplications | toYaml | nindent 4 }}
+{{ dict "applications" $apps | toYaml | nindent 4 }}
 {{- end }}
