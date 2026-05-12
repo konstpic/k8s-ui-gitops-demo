@@ -2,4 +2,4 @@ apiVersion: v2
 name: gitops-dev-apps
 description: Helm chart for k8s-ui — expands devApps into Kubernetes workloads
 type: application
-version: 0.2.0
+version: 0.3.0

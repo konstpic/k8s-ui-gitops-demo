@@ -84,8 +84,10 @@ spec:
       port: {{ $sport }}
       targetPort: http
 ---
+{{- else if eq $type "gitHelmSource" }}
+{{- /* Declarations are emitted in desired-applications-configmap.yaml */}}
 {{- else }}
-{{- fail (printf "devApps.%s: unsupported type %q (supported: httpEcho)" $app $type) }}
+{{- fail (printf "devApps.%s: unsupported type %q (supported: httpEcho, gitHelmSource)" $app $type) }}
 {{- end }}
 {{- end }}
 {{- end }}

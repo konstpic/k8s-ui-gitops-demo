@@ -1,17 +1,36 @@
-# Label app.kubernetes.io/part-of for all generated objects.
+# Label app.kubernetes.io/part-of for generated objects.
 partOf: gitops-demo
 
 env: dev
 
-# Optional prefix for namespace: "<namespacePrefix><appKey>". Empty = namespace is the app key only.
+# Default Git ref for gitHelmSource entries that omit `ref`.
+defaultRef: main
+
+# Optional prefix for httpEcho namespace: "<namespacePrefix><appKey>".
 namespacePrefix: ""
 
-# devApps: map key = stable id (used as default namespace and in resource names).
-# type: httpEcho — Deployment + Service (hashicorp/http-echo by default).
-# For plain YAML or a standalone Helm chart in this repo, create a separate k8s-ui Application
-# (e.g. path "kubernetes" or "samples/hello-world") instead of listing it here.
+# ConfigMap name for desired child Application specs (gitHelmSource only).
+desiredApplicationsConfigMapName: ""
+
+# devApps — map key = stable id.
+#
+# type: httpEcho — Deployment + Service in-cluster (synthetic demo).
+#
+# type: gitHelmSource — does not render Pods here; adds a snippet under the ConfigMap
+#   so one GitOps sync ships the *declaration* of child apps (repo URL + Helm chart path + revision + namespace).
+#   Each child still maps to one k8s-ui Application row (one repo + one path); register the repo in the UI, then
+#   create Applications from the rendered files (CI script, importer, or manual).
+#
 devApps:
-  hello-world:
+  hello-world-chart:
+    type: gitHelmSource
+    applicationName: gitops-demo-hello-world
+    repository: https://github.com/konstpic/k8s-ui-gitops-demo.git
+    path: samples/hello-world
+    ref: main
+    namespace: hello-world
+
+  hello-echo:
     type: httpEcho
     message: "Hello World"
     image:
@@ -26,10 +45,3 @@ devApps:
       limits:
         cpu: 100m
         memory: 32Mi
-
-  # Example second service (enable when needed):
-  # echo-canary:
-  #   type: httpEcho
-  #   enabled: true
-  #   message: "Canary"
-  #   namespace: echo-canary

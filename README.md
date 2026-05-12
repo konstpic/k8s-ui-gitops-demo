@@ -30,16 +30,28 @@ Uses `nginxinc/nginx-unprivileged:1.27-alpine` (non-root) in `kubernetes/`. The 
 
 ## Chart `deploy/.helm` (devApps)
 
-One k8s-ui **Application** with path **`deploy/.helm`** runs a single Helm release. Values key **`devApps`** describes several logical components; the chart renders normal **Deployment** and **Service** objects (currently type **`httpEcho`** only).
+One k8s-ui **Application** points at path **`deploy/.helm`** (Helm). Values key **`devApps`** lists logical components. Supported **`type`** values:
 
-- **Namespace** for each entry defaults to the **map key** (e.g. `hello-world` → namespace `hello-world`). Optional **`namespacePrefix`** in values, or **`namespace`** on one entry.
-- **Object names** include the Helm release name (k8s-ui Application name), e.g. `my-release-hello-world`.
-- Optional per-app **`helmValues`** in the API is merged as an extra `-f` file if you need overrides without committing them.
+| `type` | What gets rendered into the cluster |
+|--------|-------------------------------------|
+| **`httpEcho`** | `Deployment` + `Service` (synthetic echo pod). Namespace defaults to the map key unless you set **`namespace`**. |
+| **`gitHelmSource`** | No Pod from this chart alone. Emits a **ConfigMap** (`…-desired-applications`) whose `data` entries are small YAML documents shaped like **`POST /api/v1/applications`** bodies: `name`, `project`, `source.repoUrl`, `source.path`, `source.targetRevision`, `destination.cluster`, `destination.namespace`, `syncPolicy`. One Git repo + one chart path per entry — exactly one k8s-ui Application per child. |
+
+**Git + Helm for children:** register each **`repository`** URL under **Repositories** in the UI (or API), then create one Application per `gitHelmSource` row (same fields as in the ConfigMap). The ConfigMap is the **declarative list** you can drive from CI (read keys `desired-*.application.yaml`, `POST` each payload) until the product grows a built-in importer or reconciler for that object.
+
+**`POST /api/v1/application-batches`** today uses one shared **template** (single `repoUrl` / `path` / `revision`) for all batch rows, so it does **not** replace per-repo batching; use one `POST /applications` per distinct source, or a small script over the ConfigMap.
+
+**Parent sync** applies the ConfigMap plus any **`httpEcho`** workloads in one revision; child charts are still rendered by **their own** Application when you add them in the control plane.
+
+Other details:
+
+- **Object names** for `httpEcho` use the Helm release name (k8s-ui Application name), e.g. `my-release-hello-echo`.
+- Optional **`helmValues`** on the parent Application is merged into `helm template` as an extra values file.
 
 Render locally:
 
 ```bash
-helm template my-release ./deploy/.helm
+helm template my-release ./deploy/.helm --namespace gitops-system
 ```
 
-The **`kubernetes/`** nginx demo and **`samples/hello-world`** stay useful as **separate** Applications when you want a different layout or a standalone chart without the devApps values file.
+The **`kubernetes/`** nginx demo remains a good **separate** Application (plain YAML). You can also point a standalone Application at **`samples/hello-world`** without listing it under `gitHelmSource`, if you prefer not to duplicate that chart in GitOps metadata.
