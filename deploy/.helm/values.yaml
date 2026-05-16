@@ -1,12 +1,5 @@
-# Common label.
-partOf: gitops-demo
-env: dev
-
 # Optional cluster-wide default destination.
 cluster: in-cluster
-
-# Optional prefix for httpEcho namespace (inline workloads only).
-namespacePrefix: ""
 
 # ─────────────────────────────────────────────────────────────────────────────
 # devApps — single map. Each key is the canonical app id.
@@ -14,7 +7,6 @@ namespacePrefix: ""
 # Each Git-sourced entry produces:
 #   1. k8s-ui.io/v1alpha1 AppProject (same name as the app)
 #   2. k8s-ui.io/v1alpha1 Application (same name) bound to that project
-#   3. Namespace + ServiceAccount in the destination namespace (workloads.yaml)
 #
 # The controller materialises the AppProject and Application rows automatically
 # on every reconcile (app-of-apps pattern — no flag needed).
@@ -27,11 +19,11 @@ namespacePrefix: ""
 #   destination.cluster     (default top-level .cluster, or "in-cluster")
 #
 # Inline workloads:
-#   set inline: true and provide image / message / containerPort fields.
-#   These render a Namespace + Deployment + Service in this chart directly.
+#   set inline: true and optionally a namespace.
+#   These render a Namespace in this chart directly.
 #   Inline entries do NOT produce AppProject or Application child objects.
 #
-# Optional per-entry overrides:
+# Optional per-entry overrides (git-sourced):
 #   syncPolicy:           same shape as k8s-ui /api/v1/applications body
 #   ignoreDifferences:    list of {group,kind,name?,namespace?,jsonPointers[]}
 # ─────────────────────────────────────────────────────────────────────────────
@@ -63,20 +55,3 @@ devApps:
         prune: false
         selfHeal: false
       createNamespace: true
-
-  # ── Inline workload (rendered directly by this chart) ────────────────────
-  # hello-echo:
-  #   inline: true
-  #   message: "Hello World"
-  #   image:
-  #     repository: hashicorp/http-echo
-  #     tag: "0.2.3"
-  #   servicePort: 80
-  #   containerPort: 5678
-  #   resources:
-  #     requests:
-  #       cpu: 5m
-  #       memory: 16Mi
-  #     limits:
-  #       cpu: 100m
-  #       memory: 32Mi
